@@ -1,0 +1,94 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Xunit;
+using Xunit.Abstractions;
+
+namespace EfCore2x
+{
+    public class EfCore2xTest : IDisposable
+    {
+        private readonly BloggingContext _context;
+
+        public EfCore2xTest(ITestOutputHelper output)
+        {
+            // Create logger
+            var loggerFactory = new LoggerFactory();
+            loggerFactory.AddProvider(new XunitLoggerProvider(output));
+
+            // Setup database and apply migrations
+            _context = new BloggingContext(loggerFactory);
+            _context.Database.OpenConnection();
+            _context.Database.Migrate();
+
+            // Add sample record
+            var blog = _context.Add(new Blog 
+            {
+                Url = "http://blogs.msdn.com/adonet"
+            });
+            blog.Entity.Posts.Add(new Post
+            {
+                Title = "Hello World",
+                Content = "I wrote an app using EF Core!"
+            });
+
+            _context.SaveChanges();
+        }
+
+        public void Dispose()
+        {
+            _context.Dispose();
+        }
+
+        /// <summary>
+        /// Type of `ids` variable is `List<T>`. EfCore 2.x translates query as:
+        /// 
+        /// `
+        /// SELECT "post"."BlogId", "post"."Url"
+        /// FROM "Blogs" AS "post"
+        /// WHERE "post"."BlogId" IN(1, 2)
+        /// `
+        /// </summary>
+        [Fact]
+        public void ListUsedInExpressionTest()
+        {
+            var ids = new List<int>
+            {
+                1,
+                2
+            };
+
+            _context.Blogs
+                .Where(post => ids.Contains(post.BlogId))
+                .Should()
+                .NotBeEmpty();
+        }
+
+        /// <summary>
+        /// Type of `ids` variable is `ICollection<T>`. EfCore 2.x translates query as:
+        /// 
+        /// `
+        /// SELECT "post"."BlogId", "post"."Url"
+        /// FROM "Blogs" AS "post"
+        /// WHERE "post"."BlogId" IN(1, 2)
+        /// `
+        /// </summary>
+        [Fact]
+        public void CollectionUsedInExpressionTest()
+        {
+            ICollection<int> ids = new List<int>
+            {
+                1,
+                2
+            };
+
+            _context.Blogs
+                .Where(post => ids.Contains(post.BlogId))
+                .Should()
+                .NotBeEmpty();
+        }
+    }
+}
