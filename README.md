@@ -7,3 +7,8 @@ EFCore 3.0 seems to have problem when translating `ICollection<T>` into query. T
 ```bash
 docker build .
 ```
+
+## Issue
+
+https://github.com/aspnet/EntityFrameworkCore/issues/18639
+
